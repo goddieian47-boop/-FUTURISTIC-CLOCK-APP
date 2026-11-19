@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b14">
+  <link rel="icon" type="image/svg+xml" href="./icon.svg">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <title>Orbit — Clock, reminders & play</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090b14;
+      --panel: rgba(18, 21, 34, .82);
+      --panel-strong: #121522;
+      --line: rgba(174, 184, 218, .12);
+      --muted: #898fa8;
+      --text: #f0f2ff;
+      --purple: #a38bff;
+      --cyan: #66e4e6;
+      --green: #9af4c5;
+      --danger: #ff829b;
+      --radius: 22px;
+      --wallpaper-bg:
+        radial-gradient(ellipse at 12% 2%, rgba(80, 66, 160, .24), transparent 34rem),
+        radial-gradient(ellipse at 95% 43%, rgba(26, 113, 130, .12), transparent 32rem);
+    }
+    :root[data-theme="arctic"] { --bg: #07131d; --panel: rgba(15, 29, 42, .84); --panel-strong: #0f1d2a; --purple: #78caff; --cyan: #77f0d7; }
+    :root[data-theme="solar"] { --bg: #160d18; --panel: rgba(34, 20, 35, .84); --panel-strong: #221423; --purple: #ff8ac2; --cyan: #ffc078; --green: #ffe28c; }
+    :root[data-wallpaper="eclipse"] { --wallpaper-bg: radial-gradient(ellipse at 78% 12%, rgba(172, 74, 112, .27), transparent 31rem), radial-gradient(ellipse at 10% 70%, rgba(74, 90, 180, .2), transparent 33rem); }
+    :root[data-wallpaper="aurora"] { --wallpaper-bg: radial-gradient(ellipse at 7% 9%, rgba(57, 91, 166, .28), transparent 33rem), radial-gradient(ellipse at 90% 58%, rgba(33, 155, 140, .15), transparent 32rem); }
+    :root[data-font="mono"] body { font-family: "Cascadia Code", "Courier New", monospace; }
+    :root[data-font="rounded"] body { font-family: "Trebuchet MS", "Arial Rounded MT Bold", sans-serif; }
+    :root[data-font="serif"] body { font-family: Georgia, "Times New Roman", serif; }
+
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      margin: 0;
+      background: var(--wallpaper-bg), var(--bg);
+      background-attachment: fixed;
+      color: var(--text);
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+    }
+    :root[data-theme="arctic"] .hero { background: linear-gradient(113deg, rgba(20, 43, 62, .96), rgba(15, 38, 48, .92)); }
+    :root[data-theme="solar"] .hero { background: linear-gradient(113deg, rgba(52, 25, 50, .96), rgba(51, 35, 28, .92)); }
+
+    button, input, textarea, select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+    }
+
+    .app-shell { width: min(1120px, 100%); margin: 0 auto; padding: 27px 28px 40px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 30px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center;
+      background: linear-gradient(145deg, rgba(163,139,255,.2), rgba(102,228,230,.1));
+      border: 1px solid rgba(168, 155, 255, .35);
+      box-shadow: 0 0 28px rgba(125, 102, 255, .17), inset 0 0 14px rgba(102,228,230,.08);
+    }
+    .brand-mark svg { width: 25px; height: 25px; }
+    .brand-name { font-size: 15px; font-weight: 750; letter-spacing: .16em; }
+    .brand-caption { color: var(--muted); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; }
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .icon-button, .bluetooth-button, .primary-button, .quiet-button, .delete-button, .game-control {
+      border: 1px solid var(--line); cursor: pointer; transition: .18s ease;
+    }
+    .bluetooth-button, .icon-button {
+      height: 40px; border-radius: 12px; padding: 0 13px; background: rgba(20,24,39,.85);
+      display: inline-flex; align-items: center; gap: 8px; color: #ccd1e7; font-size: 12px;
+    }
+    .bluetooth-button:hover, .icon-button:hover, .quiet-button:hover, .game-control:hover { border-color: rgba(102,228,230,.5); color: white; }
+    .status-dot { height: 7px; width: 7px; border-radius: 50%; background: #777d91; }
+    .bluetooth-button.connected .status-dot { background: var(--green); box-shadow: 0 0 10px var(--green); }
+
+    .hero {
+      min-height: 257px; position: relative; overflow: hidden; border: 1px solid rgba(161,149,239,.17);
+      border-radius: 28px; padding: 29px 35px; margin-bottom: 20px;
+      background: linear-gradient(113deg, rgba(27,26,48,.94), rgba(17,26,40,.91) 66%, rgba(15,35,43,.86));
+      box-shadow: 0 18px 60px rgba(0,0,0,.2);
+    }
+    .hero:after {
+      content: ""; position: absolute; width: 320px; height: 320px; border: 1px solid rgba(162,146,255,.18);
+      border-radius: 50%; right: 7%; top: -165px; box-shadow: 0 0 0 24px rgba(162,146,255,.025), 0 0 0 55px rgba(102,228,230,.018);
+      pointer-events: none;
+    }
+    .hero-content { position: relative; z-index: 1; }
+    .eyebrow { color: #aaa1df; text-transform: uppercase; letter-spacing: .17em; font-size: 10px; font-weight: 650; }
+    .hero-time { margin: 11px 0 0; font-size: clamp(58px, 10vw, 88px); line-height: 1.03; font-weight: 300; letter-spacing: -.075em; font-variant-numeric: tabular-nums; }
+    .hero-meta { margin-top: 9px; display: flex; gap: 12px; align-items: center; color: #a6acc1; font-size: 13px; }
+    .live-pill { border: 1px solid rgba(154,244,197,.21); color: var(--green); padding: 3px 8px; border-radius: 20px; font-size: 9px; letter-spacing: .12em; }
+    .hero-side { position: absolute; right: 35px; bottom: 31px; text-align: right; z-index: 1; }
+    .hero-side strong { display: block; font-size: 11px; font-weight: 500; color: #a2a8bf; letter-spacing: .08em; }
+    .hero-side span { font-size: 23px; font-variant-numeric: tabular-nums; color: #e4e7f7; }
+
+    .dashboard { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(310px, .85fr); gap: 20px; }
+    .column { display: grid; align-content: start; gap: 20px; }
+    .card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 20px; backdrop-filter: blur(12px); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+    .section-title { margin: 0; font-size: 14px; font-weight: 650; letter-spacing: .01em; }
+    .section-subtitle { margin: 2px 0 0; color: var(--muted); font-size: 11px; }
+    .heading-wrap { display: flex; align-items: center; gap: 10px; }
+    .section-icon { width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; color: var(--purple); background: rgba(163,139,255,.1); font-size: 15px; }
+    .primary-button { background: var(--purple); color: #0b0c15; border-color: transparent; padding: 8px 12px; border-radius: 11px; font-size: 11px; font-weight: 700; box-shadow: 0 4px 16px rgba(117,98,220,.2); }
+    .primary-button:hover { filter: brightness(1.12); transform: translateY(-1px); }
+    .quiet-button { background: rgba(255,255,255,.035); border-radius: 9px; padding: 5px 9px; color: #b7bdd3; font-size: 10px; }
+
+    .alarm-form, .note-form { display: none; margin: 0 0 14px; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: rgba(5,8,17,.4); }
+    .alarm-form.open, .note-form.open { display: block; }
+    .form-row { display: flex; gap: 8px; align-items: center; }
+    input, textarea {
+      color: var(--text); background: rgba(255,255,255,.045); border: 1px solid var(--line);
+      border-radius: 10px; padding: 9px 10px; min-width: 0;
+    }
+    input[type="time"] { color-scheme: dark; }
+    .alarm-form input[type="text"] { flex: 1; }
+    .alarm-list, .notes-list, .world-list { display: grid; gap: 9px; }
+    .alarm-item {
+      display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px;
+      background: rgba(255,255,255,.027); border: 1px solid rgba(255,255,255,.045);
+    }
+    .alarm-time { min-width: 68px; font-size: 23px; line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+    .alarm-info { flex: 1; min-width: 0; }
+    .alarm-label { font-size: 12px; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .alarm-next { color: var(--muted); font-size: 10px; margin-top: 2px; }
+    .switch { appearance: none; width: 33px; height: 19px; border-radius: 20px; background: #35394a; position: relative; cursor: pointer; transition: .2s; flex: 0 0 auto; }
+    .switch:before { content: ""; position: absolute; width: 13px; height: 13px; background: #c1c5d3; border-radius: 50%; left: 3px; top: 3px; transition: .2s; }
+    .switch:checked { background: #7164d5; }
+    .switch:checked:before { left: 17px; background: white; }
+    .delete-button { border: 0; background: transparent; color: #71778d; padding: 5px; font-size: 17px; line-height: 1; }
+    .delete-button:hover { color: var(--danger); }
+    .empty-state { color: #7f859a; font-size: 12px; padding: 14px 5px; text-align: center; }
+
+    .world-list { grid-template-columns: 1fr 1fr; gap: 9px; }
+    .world-item { border: 1px solid rgba(255,255,255,.05); background: rgba(255,255,255,.027); border-radius: 13px; padding: 11px 12px; }
+    .world-city { color: #a1a7be; font-size: 10px; }
+    .world-time { font-size: 21px; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+    .world-date { color: #70768d; font-size: 9px; }
+
+    .note-form { display: grid; gap: 8px; }
+    .note-form textarea { resize: vertical; min-height: 64px; }
+    .note-form input[type="datetime-local"] { flex: 1; }
+    .note-item { display: flex; align-items: flex-start; gap: 10px; padding: 11px; border-radius: 13px; background: rgba(255,255,255,.027); border: 1px solid rgba(255,255,255,.045); }
+    .note-pin { width: 7px; height: 7px; margin-top: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px rgba(102,228,230,.35); flex: 0 0 auto; }
+    .note-content { flex: 1; min-width: 0; }
+    .note-text { color: #d7d9e8; font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .note-reminder { color: var(--cyan); font-size: 9px; margin-top: 4px; }
+
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .setting-field { display: grid; gap: 6px; min-width: 0; }
+    .setting-field > span { color: #a1a7be; font-size: 10px; }
+    .setting-field select { width: 100%; color: var(--text); background: rgba(255,255,255,.045); border: 1px solid var(--line); border-radius: 10px; padding: 9px; }
+    .wallpaper-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 9px; }
+    .wallpaper-row .setting-field { flex: 1; }
+    .wallpaper-row input[type="file"] { display: none; }
+    .wallpaper-upload { white-space: nowrap; }
+    .ringtone-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; }
+    .ringtone-row .setting-field { flex: 1; }
+    .settings-hint { grid-column: 1 / -1; margin: 0; color: #777e96; font-size: 9px; }
+
+    .time-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .tool-panel { border: 1px solid rgba(255,255,255,.06); background: rgba(255,255,255,.025); border-radius: 14px; padding: 12px; min-width: 0; }
+    .tool-label { color: #a1a7be; font-size: 10px; }
+    .tool-value { color: #edf0ff; font-size: 25px; letter-spacing: -.04em; font-variant-numeric: tabular-nums; margin: 5px 0 10px; }
+    .tool-actions { display: flex; gap: 6px; align-items: center; }
+    .tool-actions input { width: 66px; padding: 7px; font-size: 11px; }
+    .tool-actions .primary-button, .tool-actions .quiet-button { padding: 7px 9px; }
+
+    .pong-card { overflow: hidden; }
+    .game-topline { display: flex; justify-content: space-between; align-items: center; margin: -2px 0 11px; color: var(--muted); font-size: 10px; }
+    .score { font-variant-numeric: tabular-nums; color: #e8eaff; font-size: 12px; letter-spacing: .08em; }
+    .game-stage {
+      height: 165px; position: relative; border-radius: 13px; overflow: hidden; background: #080d18;
+      border: 1px solid rgba(102,228,230,.14);
+    }
+    #pongCanvas { width: 100%; height: 100%; display: block; }
+    .game-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5,8,16,.48); transition: opacity .2s; }
+    .game-overlay.hidden { opacity: 0; pointer-events: none; }
+    .game-start { border: 1px solid rgba(102,228,230,.38); background: rgba(23,35,48,.9); color: var(--cyan); border-radius: 10px; padding: 8px 15px; cursor: pointer; font-size: 11px; }
+    .game-controls { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 11px; }
+    .key-hint { color: #777e96; font-size: 9px; }
+    .key-hint kbd { color: #c6cbe0; border: 1px solid #35394c; border-radius: 4px; padding: 2px 4px; font: inherit; }
+    .keypad { display: flex; gap: 6px; }
+    .game-control { width: 36px; height: 32px; border-radius: 9px; background: rgba(255,255,255,.04); color: #bbc3d8; font-size: 15px; touch-action: none; }
+    .game-control:active { background: rgba(102,228,230,.19); }
+    .footer { color: #555b70; text-align: center; font-size: 9px; margin-top: 20px; letter-spacing: .06em; }
+
+    @media (max-width: 720px) {
+      .app-shell { padding: 18px 15px 28px; }
+      .topbar { margin-bottom: 20px; }
+      .brand-caption { display: none; }
+      .bluetooth-button { padding: 0 10px; }
+      .hero { min-height: 225px; padding: 25px 22px; border-radius: 23px; margin-bottom: 15px; }
+      .hero-side { right: 20px; bottom: 25px; }
+      .hero-side span { font-size: 18px; }
+      .dashboard { grid-template-columns: 1fr; gap: 15px; }
+      .column { gap: 15px; }
+      .card { padding: 17px; border-radius: 19px; }
+      .settings-grid { gap: 10px; }
+    }
+    @media (max-width: 390px) {
+      .time-tools { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 390px) {
+      .brand-name { font-size: 13px; }
+      .bluetooth-button { font-size: 0; gap: 0; width: 40px; justify-content: center; }
+      .hero-side { position: static; text-align: left; margin-top: 12px; }
+      .hero-side strong { display: inline; margin-right: 7px; }
+      .hero-side span { font-size: 14px; }
+      .hero { min-height: unset; }
+      .game-controls { align-items: flex-end; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *:before, *:after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="10.5" stroke="#A38BFF" stroke-width="1.5"/>
+            <ellipse cx="16" cy="16" rx="14" ry="5.6" transform="rotate(-32 16 16)" stroke="#66E4E6" stroke-width="1.4"/>
+            <circle cx="23.5" cy="8.5" r="2" fill="#9AF4C5"/>
+            <path d="M16 10v6l4 2.5" stroke="#F0F2FF" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div><div class="brand-name">ORBIT</div><div class="brand-caption">Your time, in sync</div></div>
+      </div>
+      <div class="top-actions">
+        <button class="bluetooth-button" id="bluetoothButton" type="button" aria-label="Connect a Bluetooth clock">
+          <span class="status-dot"></span><span id="bluetoothLabel">Connect clock</span>
+        </button>
+      </div>
+    </header>
+
+    <section class="hero" aria-label="Current local time">
+      <div class="hero-content">
+        <div class="eyebrow">Local time · 24-hour</div>
+        <div class="hero-time" id="localTime">--:--:--</div>
+        <div class="hero-meta"><span id="localDate">Loading date…</span><span class="live-pill">LIVE</span></div>
+      </div>
+      <div class="hero-side"><strong>YOUR TIME ZONE</strong><span id="localZone">—</span></div>
+    </section>
+
+    <div class="dashboard">
+      <div class="column">
+        <section class="card" aria-labelledby="alarmHeading">
+          <div class="card-header">
+            <div class="heading-wrap"><span class="section-icon" aria-hidden="true">◷</span><div><h2 class="section-title" id="alarmHeading">Alarms</h2><p class="section-subtitle">A little nudge, right on time</p></div></div>
+            <button class="primary-button" id="showAlarmForm" type="button">＋ New alarm</button>
+          </div>
+          <form class="alarm-form" id="alarmForm">
+            <div class="form-row">
+              <input type="time" id="alarmTime" required aria-label="Alarm time">
+              <input type="text" id="alarmLabel" maxlength="36" placeholder="Alarm name" aria-label="Alarm name">
+              <button class="primary-button" type="submit">Add</button>
+            </div>
+          </form>
+          <div class="alarm-list" id="alarmList"></div>
+        </section>
+
+        <section class="card" aria-labelledby="toolsHeading">
+          <div class="card-header">
+            <div class="heading-wrap"><span class="section-icon" aria-hidden="true">⌛</span><div><h2 class="section-title" id="toolsHeading">Time tools</h2><p class="section-subtitle">Focus timers and lap-free stopwatch</p></div></div>
+          </div>
+          <div class="time-tools">
+            <div class="tool-panel">
+              <div class="tool-label">COUNTDOWN TIMER</div>
+              <div class="tool-value" id="timerDisplay">05:00</div>
+              <div class="tool-actions"><input id="timerMinutes" type="number" min="1" max="599" value="5" aria-label="Timer duration in minutes"><button class="primary-button" id="timerToggle" type="button">Start</button><button class="quiet-button" id="timerReset" type="button">Reset</button></div>
+            </div>
+            <div class="tool-panel">
+              <div class="tool-label">STOPWATCH</div>
+              <div class="tool-value" id="stopwatchDisplay">00:00.0</div>
+              <div class="tool-actions"><button class="primary-button" id="stopwatchToggle" type="button">Start</button><button class="quiet-button" id="stopwatchReset" type="button">Reset</button></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" aria-labelledby="notesHeading">
+          <div class="card-header">
+            <div class="heading-wrap"><span class="section-icon" aria-hidden="true" style="color:var(--cyan);background:rgba(102,228,230,.09)">✎</span><div><h2 class="section-title" id="notesHeading">Quick notes</h2><p class="section-subtitle">Thoughts worth remembering</p></div></div>
+            <button class="quiet-button" id="showNoteForm" type="button">＋ Add note</button>
+          </div>
+          <form class="note-form" id="noteForm">
+            <textarea id="noteText" maxlength="240" placeholder="Type a note or reminder…" required aria-label="Note"></textarea>
+            <div class="form-row"><input type="datetime-local" id="noteReminder" aria-label="Optional reminder time"><button class="primary-button" type="submit">Save note</button></div>
+          </form>
+          <div class="notes-list" id="notesList"></div>
+        </section>
+      </div>
+
+      <div class="column">
+        <section class="card" aria-labelledby="worldHeading">
+          <div class="card-header">
+            <div class="heading-wrap"><span class="section-icon" aria-hidden="true" style="color:var(--cyan);background:rgba(102,228,230,.09)">◎</span><div><h2 class="section-title" id="worldHeading">Around the world</h2><p class="section-subtitle">All times shown in 24-hour format</p></div></div>
+          </div>
+          <div class="world-list" id="worldList"></div>
+        </section>
+
+        <section class="card" aria-labelledby="settingsHeading">
+          <div class="card-header">
+            <div class="heading-wrap"><span class="section-icon" aria-hidden="true">✧</span><div><h2 class="section-title" id="settingsHeading">Make it yours</h2><p class="section-subtitle">Personalize your Orbit</p></div></div>
+          </div>
+          <div class="settings-grid">
+            <label class="setting-field"><span>Color theme</span><select id="themeSelect" aria-label="Color theme"><option value="nebula">Nebula</option><option value="arctic">Arctic glow</option><option value="solar">Solar flare</option></select></label>
+            <label class="setting-field"><span>Typeface</span><select id="fontSelect" aria-label="Typeface"><option value="system">System</option><option value="rounded">Rounded</option><option value="mono">Digital mono</option><option value="serif">Classic serif</option></select></label>
+            <div class="wallpaper-row">
+              <label class="setting-field"><span>Wallpaper</span><select id="wallpaperSelect" aria-label="Wallpaper"><option value="nebula">Nebula field</option><option value="aurora">Aurora</option><option value="eclipse">Eclipse</option><option value="custom">Custom image</option></select></label>
+              <label class="quiet-button wallpaper-upload" for="wallpaperFile">Choose image</label><input id="wallpaperFile" type="file" accept="image/*" aria-label="Upload wallpaper">
+            </div>
+            <div class="ringtone-row">
+              <label class="setting-field"><span>Alarm ringtone</span><select id="ringtoneSelect" aria-label="Alarm ringtone"><option value="pulse">Orbit pulse</option><option value="chime">Starlight chime</option><option value="bell">Cosmic bell</option></select></label>
+              <button class="quiet-button" id="previewRingtone" type="button" style="align-self:end">▶ Preview</button>
+            </div>
+            <p class="settings-hint">Custom wallpapers stay on this device. Ringtones play on alarms, reminders and timer alerts.</p>
+          </div>
+        </section>
+
+        <section class="card pong-card" aria-labelledby="pongHeading">
+          <div class="card-header" style="margin-bottom:12px">
+            <div class="heading-wrap"><span class="section-icon" aria-hidden="true">⌁</span><div><h2 class="section-title" id="pongHeading">Orbit Pong</h2><p class="section-subtitle">A quick game between the hours</p></div></div>
+          </div>
+          <div class="game-topline"><span>YOU <span class="score" id="playerScore">00</span></span><span>FIRST TO 5</span><span><span class="score" id="cpuScore">00</span> CPU</span></div>
+          <div class="game-stage">
+            <canvas id="pongCanvas" aria-label="Pong game"></canvas>
+            <div class="game-overlay" id="gameOverlay"><button class="game-start" id="gameStart" type="button">▶ &nbsp;Start game</button></div>
+          </div>
+          <div class="game-controls">
+            <div class="key-hint"><kbd>↑</kbd> <kbd>↓</kbd> or <kbd>W</kbd> <kbd>S</kbd> to move</div>
+            <div class="keypad" aria-label="Touch controls">
+              <button class="game-control" type="button" data-move="-1" aria-label="Move paddle up">↑</button>
+              <button class="game-control" type="button" data-move="1" aria-label="Move paddle down">↓</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <footer class="footer">ORBIT · MAKE EVERY MOMENT COUNT</footer>
+  </main>
+
+  <script type="module">
+    if (location.protocol !== "file:") {
+      import("./src/native.js").catch((error) => console.error("Could not initialize native clock features.", error));
+    }
+  </script>
+  <script>
+    (function () {
+      "use strict";
+      const $ = (selector) => document.querySelector(selector);
+      const safeRead = (key) => {
+        try {
+          const value = JSON.parse(localStorage.getItem(key) || "[]");
+          return Array.isArray(value) ? value : [];
+        } catch (error) {
+          console.error("Could not read saved " + key + ".", error);
+          return [];
+        }
+      };
+      const save = (key, value) => {
+        try { localStorage.setItem(key, JSON.stringify(value)); }
+        catch (error) { console.error("Could not save " + key + ".", error); }
+      };
+      let alarms = safeRead("orbit-alarms");
+      let notes = safeRead("orbit-notes");
+      let timer = { durationMs: 300000, remainingMs: 300000, running: false, endAt: 0 };
+      let stopwatch = { elapsedMs: 0, running: false, startedAt: 0 };
+      try {
+        const savedTimer = JSON.parse(localStorage.getItem("orbit-timer") || "null");
+        if (savedTimer && Number.isFinite(savedTimer.durationMs) && Number.isFinite(savedTimer.remainingMs)) {
+          timer = {
+            durationMs: Math.max(0, savedTimer.durationMs),
+            remainingMs: Math.max(0, savedTimer.remainingMs),
+            running: Boolean(savedTimer.running),
+            endAt: Number.isFinite(savedTimer.endAt) ? savedTimer.endAt : 0
+          };
+          if (timer.running && timer.endAt <= Date.now()) {
+            timer.running = false;
+            timer.remainingMs = 0;
+            timer.endAt = 0;
+          }
+        }
+        const savedStopwatch = JSON.parse(localStorage.getItem("orbit-stopwatch") || "null");
+        if (savedStopwatch && Number.isFinite(savedStopwatch.elapsedMs)) {
+          stopwatch = {
+            elapsedMs: Math.max(0, savedStopwatch.elapsedMs),
+            running: Boolean(savedStopwatch.running),
+            startedAt: Number.isFinite(savedStopwatch.startedAt) ? savedStopwatch.startedAt : 0
+          };
+        }
+      } catch (error) {
+        console.error("Could not read saved timer state.", error);
+      }
+      let preferences;
+      try {
+        preferences = JSON.parse(localStorage.getItem("orbit-preferences") || "{}");
+      } catch (error) {
+        console.error("Could not read saved appearance preferences.", error);
+        preferences = {};
+      }
+      preferences = {
+        theme: ["nebula", "arctic", "solar"].includes(preferences.theme) ? preferences.theme : "nebula",
+        font: ["system", "rounded", "mono", "serif"].includes(preferences.font) ? preferences.font : "system",
+        wallpaper: ["nebula", "aurora", "eclipse", "custom"].includes(preferences.wallpaper) ? preferences.wallpaper : "nebula",
+        customWallpaper: typeof preferences.customWallpaper === "string" ? preferences.customWallpaper : "",
+        ringtone: ["pulse", "chime", "bell"].includes(preferences.ringtone) ? preferences.ringtone : "pulse"
+      };
+      const worldZones = [
+        ["New York", "America/New_York"],
+        ["London", "Europe/London"],
+        ["Tokyo", "Asia/Tokyo"],
+        ["Sydney", "Australia/Sydney"]
+      ];
+      let lastMinute = "";
+
+      function formatTime(date, zone) {
+        return new Intl.DateTimeFormat("en-GB", { timeZone: zone, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).format(date);
+      }
+      function updateClocks() {
+        const now = new Date();
+        const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local";
+        $("#localTime").textContent = formatTime(now, zone);
+        $("#localDate").textContent = new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(now);
+        $("#localZone").textContent = zone.replace(/_/g, " ");
+        $("#worldList").innerHTML = worldZones.map(([city, timeZone]) =>
+          '<div class="world-item"><div class="world-city">' + city + '</div><div class="world-time">' + formatTime(now, timeZone).slice(0, 5) + '</div><div class="world-date">' +
+          new Intl.DateTimeFormat("en", { timeZone, weekday: "short", month: "short", day: "numeric" }).format(now) + '</div></div>'
+        ).join("");
+        const minute = [now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes()].join("-");
+        if (minute !== lastMinute) {
+          lastMinute = minute;
+          checkReminders(now);
+        }
+      }
+      function savePreferences() {
+        try { localStorage.setItem("orbit-preferences", JSON.stringify(preferences)); }
+        catch (error) {
+          console.error("Could not save appearance preferences.", error);
+          window.alert("This wallpaper could not be saved. Try a smaller image.");
+        }
+      }
+      function applyPreferences() {
+        const root = document.documentElement;
+        root.dataset.theme = preferences.theme;
+        root.dataset.font = preferences.font;
+        root.dataset.wallpaper = preferences.wallpaper === "custom" && !preferences.customWallpaper ? "nebula" : preferences.wallpaper;
+        if (preferences.wallpaper === "custom" && preferences.customWallpaper) {
+          root.style.setProperty("--wallpaper-bg", 'linear-gradient(rgba(7, 9, 17, .78), rgba(7, 9, 17, .85)), url("' + preferences.customWallpaper + '")');
+        } else {
+          root.style.removeProperty("--wallpaper-bg");
+        }
+        $("#themeSelect").value = preferences.theme;
+        $("#fontSelect").value = preferences.font;
+        $("#wallpaperSelect").value = preferences.wallpaper;
+        $("#ringtoneSelect").value = preferences.ringtone;
+      }
+      function syncNativeNotifications() {
+        if (window.OrbitNative && window.OrbitNative.isNative) {
+          return window.OrbitNative.sync(alarms, notes, preferences.ringtone, timer);
+        }
+        return Promise.resolve();
+      }
+      window.addEventListener("orbit-native-ready", () => {
+        if (document.readyState === "complete") syncNativeNotifications();
+      });
+      window.addEventListener("orbit-native-error", (event) => {
+        window.alert("Orbit could not schedule an alarm or reminder. " + event.detail);
+      });
+      function saveTimer() {
+        try { localStorage.setItem("orbit-timer", JSON.stringify(timer)); }
+        catch (error) { console.error("Could not save timer state.", error); }
+      }
+      function saveStopwatch() {
+        try { localStorage.setItem("orbit-stopwatch", JSON.stringify(stopwatch)); }
+        catch (error) { console.error("Could not save stopwatch state.", error); }
+      }
+      function renderTimer() {
+        if (timer.running && timer.endAt <= Date.now()) {
+          timer.running = false;
+          timer.remainingMs = 0;
+          timer.endAt = 0;
+          saveTimer();
+          syncNativeNotifications();
+          if (!(window.OrbitNative && window.OrbitNative.isNative)) notify("Orbit timer", "Your countdown is complete.");
+        }
+        const remaining = timer.running ? Math.max(0, timer.endAt - Date.now()) : timer.remainingMs;
+        const totalSeconds = Math.ceil(remaining / 1000);
+        $("#timerDisplay").textContent = String(Math.floor(totalSeconds / 60)).padStart(2, "0") + ":" + String(totalSeconds % 60).padStart(2, "0");
+        $("#timerToggle").textContent = timer.running ? "Pause" : "Start";
+      }
+      function renderStopwatch() {
+        const elapsed = stopwatch.elapsedMs + (stopwatch.running ? Date.now() - stopwatch.startedAt : 0);
+        const tenths = Math.floor(elapsed / 100);
+        const seconds = Math.floor(tenths / 10) % 60;
+        const minutes = Math.floor(tenths / 600) % 60;
+        const hours = Math.floor(tenths / 36000);
+        $("#stopwatchDisplay").textContent = (hours ? String(hours).padStart(2, "0") + ":" : "") +
+          String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0") + "." + (tenths % 10);
+        $("#stopwatchToggle").textContent = stopwatch.running ? "Pause" : "Start";
+      }
+      $("#timerMinutes").addEventListener("change", (event) => {
+        if (timer.running) return;
+        const minutes = Math.max(1, Math.min(599, Number(event.currentTarget.value) || 1));
+        event.currentTarget.value = String(minutes);
+        timer.durationMs = minutes * 60000;
+        timer.remainingMs = timer.durationMs;
+        saveTimer();
+        renderTimer();
+      });
+      $("#timerToggle").addEventListener("click", () => {
+        if (timer.running) {
+          timer.remainingMs = Math.max(0, timer.endAt - Date.now());
+          timer.running = false;
+          timer.endAt = 0;
+        } else {
+          if (timer.remainingMs <= 0) {
+            timer.durationMs = Math.max(1, Math.min(599, Number($("#timerMinutes").value) || 1)) * 60000;
+            timer.remainingMs = timer.durationMs;
+          }
+          timer.running = true;
+          timer.endAt = Date.now() + timer.remainingMs;
+        }
+        saveTimer();
+        renderTimer();
+        syncNativeNotifications();
+      });
+      $("#timerReset").addEventListener("click", () => {
+        timer.running = false;
+        timer.remainingMs = timer.durationMs;
+        timer.endAt = 0;
+        saveTimer();
+        renderTimer();
+        syncNativeNotifications();
+      });
+      $("#stopwatchToggle").addEventListener("click", () => {
+        if (stopwatch.running) {
+          stopwatch.elapsedMs += Date.now() - stopwatch.startedAt;
+          stopwatch.running = false;
+          stopwatch.startedAt = 0;
+        } else {
+          stopwatch.running = true;
+          stopwatch.startedAt = Date.now();
+        }
+        saveStopwatch();
+        renderStopwatch();
+      });
+      $("#stopwatchReset").addEventListener("click", () => {
+        stopwatch = { elapsedMs: 0, running: false, startedAt: 0 };
+        saveStopwatch();
+        renderStopwatch();
+      });
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+      }
+      function nextAlarmText(time) {
+        const [hour, minute] = time.split(":").map(Number);
+        const next = new Date();
+        next.setHours(hour, minute, 0, 0);
+        if (next <= new Date()) next.setDate(next.getDate() + 1);
+        const days = Math.max(0, Math.ceil((next - new Date()) / 86400000));
+        return days === 0 ? "Today" : days === 1 ? "Tomorrow" : "Upcoming";
+      }
+      function renderAlarms() {
+        const list = $("#alarmList");
+        list.innerHTML = alarms.length ? alarms.map((alarm) =>
+          '<div class="alarm-item"><div class="alarm-time">' + escapeHtml(alarm.time) + '</div><div class="alarm-info"><div class="alarm-label">' +
+          escapeHtml(alarm.label || "Alarm") + '</div><div class="alarm-next">' + nextAlarmText(alarm.time) + '</div></div><input class="switch" type="checkbox" aria-label="Enable ' +
+          escapeHtml(alarm.label || "alarm") + '" data-alarm-id="' + escapeHtml(alarm.id) + '"' + (alarm.enabled ? " checked" : "") +
+          '><button class="delete-button" type="button" aria-label="Delete alarm" data-delete-alarm="' + escapeHtml(alarm.id) + '">×</button></div>'
+        ).join("") : '<div class="empty-state">No alarms set. Add one to get started.</div>';
+      }
+      function renderNotes() {
+        const list = $("#notesList");
+        list.innerHTML = notes.length ? notes.map((note) =>
+          '<div class="note-item"><span class="note-pin"></span><div class="note-content"><div class="note-text">' + escapeHtml(note.text) +
+          '</div>' + (note.reminder ? '<div class="note-reminder">◷ ' + escapeHtml(new Date(note.reminder).toLocaleString()) + '</div>' : '') +
+          '</div><button class="delete-button" type="button" aria-label="Delete note" data-delete-note="' + escapeHtml(note.id) + '">×</button></div>'
+        ).join("") : '<div class="empty-state">Your notes will show up here.</div>';
+      }
+      function requestNotificationPermission() {
+        if (window.OrbitNative && window.OrbitNative.isNative) {
+          syncNativeNotifications();
+          return;
+        }
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission().catch((error) => console.error("Could not request notification permission.", error));
+        }
+      }
+
+      $("#themeSelect").addEventListener("change", (event) => {
+        preferences.theme = event.currentTarget.value;
+        applyPreferences();
+        savePreferences();
+      });
+      $("#fontSelect").addEventListener("change", (event) => {
+        preferences.font = event.currentTarget.value;
+        applyPreferences();
+        savePreferences();
+      });
+      $("#wallpaperSelect").addEventListener("change", (event) => {
+        preferences.wallpaper = event.currentTarget.value;
+        if (preferences.wallpaper === "custom" && !preferences.customWallpaper) $("#wallpaperFile").click();
+        applyPreferences();
+        savePreferences();
+      });
+      $("#wallpaperFile").addEventListener("change", (event) => {
+        const file = event.currentTarget.files && event.currentTarget.files[0];
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+          window.alert("Choose an image file for your wallpaper.");
+          event.currentTarget.value = "";
+          return;
+        }
+        const image = new Image();
+        const source = URL.createObjectURL(file);
+        image.onload = () => {
+          const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+          canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+          preferences.customWallpaper = canvas.toDataURL("image/jpeg", .78);
+          preferences.wallpaper = "custom";
+          applyPreferences();
+          savePreferences();
+          URL.revokeObjectURL(source);
+          event.currentTarget.value = "";
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(source);
+          event.currentTarget.value = "";
+          window.alert("That image could not be loaded as a wallpaper.");
+        };
+        image.src = source;
+      });
+      $("#ringtoneSelect").addEventListener("change", (event) => {
+        preferences.ringtone = event.currentTarget.value;
+        savePreferences();
+        syncNativeNotifications();
+      });
+      $("#previewRingtone").addEventListener("click", async () => {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) {
+          window.alert("Audio preview is not supported in this browser.");
+          return;
+        }
+        const patterns = {
+          pulse: [523.25, 659.25, 783.99],
+          chime: [783.99, 1046.5, 1318.51],
+          bell: [659.25, 880, 1174.66]
+        };
+        const context = new AudioContext();
+        await context.resume();
+        patterns[preferences.ringtone].forEach((frequency, index) => {
+          const start = context.currentTime + index * .24;
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          oscillator.type = "sine";
+          oscillator.frequency.value = frequency;
+          gain.gain.setValueAtTime(.0001, start);
+          gain.gain.exponentialRampToValueAtTime(.14, start + .025);
+          gain.gain.exponentialRampToValueAtTime(.0001, start + .22);
+          oscillator.connect(gain);
+          gain.connect(context.destination);
+          oscillator.start(start);
+          oscillator.stop(start + .23);
+        });
+        window.setTimeout(() => context.close(), 1100);
+      });
+
+      $("#showAlarmForm").addEventListener("click", () => {
+        $("#alarmForm").classList.toggle("open");
+        if ($("#alarmForm").classList.contains("open")) $("#alarmTime").focus();
+      });
+      $("#alarmForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const time = $("#alarmTime").value;
+        if (!time) return;
+        alarms.push({ id: String(Date.now()), time, label: $("#alarmLabel").value.trim() || "Alarm", enabled: true, fired: "" });
+        save("orbit-alarms", alarms);
+        renderAlarms();
+        requestNotificationPermission();
+        event.currentTarget.reset();
+        event.currentTarget.classList.remove("open");
+      });
+      $("#alarmList").addEventListener("change", (event) => {
+        const id = event.target.dataset.alarmId;
+        if (!id) return;
+        const alarm = alarms.find((entry) => entry.id === id);
+        if (alarm) {
+          alarm.enabled = event.target.checked;
+          save("orbit-alarms", alarms);
+          syncNativeNotifications();
+        }
+      });
+      $("#alarmList").addEventListener("click", (event) => {
+        const id = event.target.dataset.deleteAlarm;
+        if (!id) return;
+        alarms = alarms.filter((entry) => entry.id !== id);
+        save("orbit-alarms", alarms);
+        renderAlarms();
+        syncNativeNotifications();
+      });
+      $("#showNoteForm").addEventListener("click", () => {
+        $("#noteForm").classList.toggle("open");
+        if ($("#noteForm").classList.contains("open")) $("#noteText").focus();
+      });
+      $("#noteForm").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const text = $("#noteText").value.trim();
+        if (!text) return;
+        const reminder = $("#noteReminder").value ? new Date($("#noteReminder").value).toISOString() : "";
+        notes.unshift({ id: String(Date.now()), text, reminder, notified: false });
+        save("orbit-notes", notes);
+        renderNotes();
+        if (reminder) requestNotificationPermission();
+        else syncNativeNotifications();
+        event.currentTarget.reset();
+        event.currentTarget.classList.remove("open");
+      });
+      $("#notesList").addEventListener("click", (event) => {
+        const id = event.target.dataset.deleteNote;
+        if (!id) return;
+        notes = notes.filter((entry) => entry.id !== id);
+        save("orbit-notes", notes);
+        renderNotes();
+        syncNativeNotifications();
+      });
+
+      function notify(title, body) {
+        if ("Notification" in window && Notification.permission === "granted") new Notification(title, { body });
+        else window.alert(title + "\n" + body);
+      }
+      function checkReminders(now) {
+        if (window.OrbitNative && window.OrbitNative.isNative) return;
+        const today = [now.getFullYear(), now.getMonth(), now.getDate()].join("-");
+        const nowMinute = now.getHours() * 60 + now.getMinutes();
+        alarms.forEach((alarm) => {
+          if (!alarm.enabled) return;
+          const [hour, minute] = alarm.time.split(":").map(Number);
+          if (hour * 60 + minute === nowMinute && alarm.fired !== today) {
+            alarm.fired = today;
+            notify("Orbit alarm", alarm.label || "It's time.");
+          }
+        });
+        let changed = false;
+        notes.forEach((note) => {
+          if (!note.reminder || note.notified || new Date(note.reminder) > now) return;
+          note.notified = true;
+          changed = true;
+          notify("Orbit reminder", note.text);
+        });
+        if (changed) save("orbit-notes", notes);
+        save("orbit-alarms", alarms);
+      }
+
+      const bluetoothButton = $("#bluetoothButton");
+      bluetoothButton.addEventListener("click", async () => {
+        if (window.OrbitNative && window.OrbitNative.isNative) {
+          try {
+            if (bluetoothButton.classList.contains("connected")) {
+              await window.OrbitNative.disconnectClock();
+              bluetoothButton.classList.remove("connected");
+              $("#bluetoothLabel").textContent = "Connect clock";
+              return;
+            }
+            $("#bluetoothLabel").textContent = "Choose device…";
+            const device = await window.OrbitNative.connectClock();
+            bluetoothButton.classList.add("connected");
+            $("#bluetoothLabel").textContent = device.name;
+          } catch (error) {
+            $("#bluetoothLabel").textContent = "Connect clock";
+            if (error.message !== "User cancelled.") {
+              console.error("Bluetooth connection failed.", error);
+              window.alert("Could not connect to that Bluetooth device: " + error.message);
+            }
+          }
+          return;
+        }
+        if (!navigator.bluetooth) {
+          window.alert("Bluetooth pairing is not available in this browser. Try a supported browser over HTTPS on a Bluetooth-enabled device.");
+          return;
+        }
+        try {
+          $("#bluetoothLabel").textContent = "Choose device…";
+          const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true });
+          $("#bluetoothLabel").textContent = "Connecting…";
+          if (!device.gatt) throw new Error("This device does not offer a Bluetooth GATT connection.");
+          const server = await device.gatt.connect();
+          bluetoothButton.classList.add("connected");
+          $("#bluetoothLabel").textContent = device.name || "Clock connected";
+          device.addEventListener("gattserverdisconnected", () => {
+            bluetoothButton.classList.remove("connected");
+            $("#bluetoothLabel").textContent = "Connect clock";
+          }, { once: true });
+          if (server.connected) console.info("Bluetooth device connected. A device-specific clock service is needed to exchange time data.");
+        } catch (error) {
+          $("#bluetoothLabel").textContent = "Connect clock";
+          if (error.name !== "NotFoundError" && error.name !== "AbortError") {
+            console.error("Bluetooth connection failed.", error);
+            window.alert("Could not connect to that Bluetooth device: " + error.message);
+          }
+        }
+      });
+      window.addEventListener("orbit-bluetooth-disconnected", () => {
+        bluetoothButton.classList.remove("connected");
+        $("#bluetoothLabel").textContent = "Connect clock";
+      });
+
+      const canvas = $("#pongCanvas");
+      const ctx = canvas.getContext("2d");
+      const overlay = $("#gameOverlay");
+      let game = null;
+      let moveDirection = 0;
+      let frame = 0;
+      let playerScore = 0;
+      let cpuScore = 0;
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.round(rect.width * dpr);
+        canvas.height = Math.round(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawGame();
+      }
+      function drawGame() {
+        const width = canvas.clientWidth;
+        const height = canvas.clientHeight;
+        if (!width || !height) return;
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = "rgba(147,163,195,.2)";
+        ctx.setLineDash([4, 6]); ctx.beginPath(); ctx.moveTo(width / 2, 0); ctx.lineTo(width / 2, height); ctx.stroke(); ctx.setLineDash([]);
+        if (!game) return;
+        ctx.fillStyle = "#66e4e6";
+        ctx.shadowColor = "#66e4e6"; ctx.shadowBlur = 10;
+        ctx.fillRect(13, game.playerY, 5, 37);
+        ctx.shadowColor = "#a38bff"; ctx.fillStyle = "#a38bff";
+        ctx.fillRect(width - 18, game.cpuY, 5, 37);
+        ctx.shadowColor = "#f0f2ff"; ctx.fillStyle = "#f0f2ff";
+        ctx.beginPath(); ctx.arc(game.ballX, game.ballY, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      function startGame() {
+        cancelAnimationFrame(frame);
+        playerScore = 0; cpuScore = 0;
+        $("#playerScore").textContent = "00"; $("#cpuScore").textContent = "00";
+        game = { playerY: canvas.clientHeight / 2 - 18, cpuY: canvas.clientHeight / 2 - 18, ballX: canvas.clientWidth / 2, ballY: canvas.clientHeight / 2, vx: 3.2, vy: 2.2 };
+        overlay.classList.add("hidden");
+        tick();
+      }
+      function tick() {
+        if (!game) return;
+        const w = canvas.clientWidth, h = canvas.clientHeight;
+        game.playerY = Math.max(0, Math.min(h - 37, game.playerY + moveDirection * 4.5));
+        game.cpuY += ((game.ballY - (game.cpuY + 18.5)) * .075);
+        game.cpuY = Math.max(0, Math.min(h - 37, game.cpuY));
+        game.ballX += game.vx; game.ballY += game.vy;
+        if (game.ballY < 4 || game.ballY > h - 4) game.vy *= -1;
+        if (game.vx < 0 && game.ballX < 21 && game.ballY > game.playerY - 2 && game.ballY < game.playerY + 39) {
+          game.vx = Math.abs(game.vx) * 1.025;
+          game.vy += (game.ballY - game.playerY - 18) * .045;
+        }
+        if (game.vx > 0 && game.ballX > w - 24 && game.ballY > game.cpuY - 2 && game.ballY < game.cpuY + 39) {
+          game.vx = -Math.abs(game.vx) * 1.015;
+          game.vy += (game.ballY - game.cpuY - 18) * .03;
+        }
+        if (game.ballX < 0) {
+          cpuScore++; $("#cpuScore").textContent = String(cpuScore).padStart(2, "0"); resetBall(-1);
+        } else if (game.ballX > w) {
+          playerScore++; $("#playerScore").textContent = String(playerScore).padStart(2, "0"); resetBall(1);
+        }
+        drawGame();
+        if (playerScore >= 5 || cpuScore >= 5) {
+          game = null;
+          $("#gameStart").textContent = playerScore > cpuScore ? "You win · Play again" : "Game over · Play again";
+          overlay.classList.remove("hidden");
+          return;
+        }
+        frame = requestAnimationFrame(tick);
+      }
+      function resetBall(direction) {
+        game.ballX = canvas.clientWidth / 2; game.ballY = canvas.clientHeight / 2;
+        game.vx = direction * 3.2; game.vy = Math.random() > .5 ? 2.2 : -2.2;
+      }
+      $("#gameStart").addEventListener("click", startGame);
+      window.addEventListener("keydown", (event) => {
+        if (["ArrowUp", "ArrowDown", " "].includes(event.key)) event.preventDefault();
+        if (event.key === "ArrowUp" || event.key.toLowerCase() === "w") moveDirection = -1;
+        if (event.key === "ArrowDown" || event.key.toLowerCase() === "s") moveDirection = 1;
+        if (event.key === " " && !game) startGame();
+      });
+      window.addEventListener("keyup", (event) => {
+        if (["ArrowUp", "ArrowDown", "w", "s", "W", "S"].includes(event.key)) moveDirection = 0;
+      });
+      document.querySelectorAll(".game-control").forEach((button) => {
+        const setDirection = (direction) => { moveDirection = direction; };
+        button.addEventListener("pointerdown", (event) => { event.preventDefault(); setDirection(Number(button.dataset.move)); });
+        ["pointerup", "pointerleave", "pointercancel"].forEach((name) => button.addEventListener(name, () => setDirection(0)));
+      });
+      window.addEventListener("blur", () => { moveDirection = 0; });
+      window.addEventListener("resize", resizeCanvas);
+      applyPreferences();
+      renderAlarms();
+      renderNotes();
+      $("#timerMinutes").value = String(Math.max(1, Math.min(599, Math.ceil(timer.durationMs / 60000))));
+      renderTimer();
+      renderStopwatch();
+      resizeCanvas();
+      window.setInterval(() => {
+        renderTimer();
+        renderStopwatch();
+      }, 100);
+      window.addEventListener("load", () => {
+        updateClocks();
+        window.setInterval(updateClocks, 1000);
+        syncNativeNotifications();
+      }, { once: true });
+    })();
+  </script>
+</body>
+</html>

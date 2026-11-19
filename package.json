@@ -1,0 +1,22 @@
+{
+  "name": "orbit-clock",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A futuristic clock, alarm, reminders, world clocks and games.",
+  "scripts": {
+    "build": "vite build",
+    "android:add": "cap add android",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.2.1",
+    "@capacitor/core": "6.2.1",
+    "@capacitor/local-notifications": "6.0.2",
+    "@capacitor-community/bluetooth-le": "6.1.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.2.1",
+    "vite": "5.4.14"
+  }
+}

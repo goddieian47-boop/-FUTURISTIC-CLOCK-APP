@@ -1,0 +1,23 @@
+{
+  "appId": "com.orbit.clock",
+  "appName": "Orbit Clock",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_orbit",
+      "iconColor": "#66e4e6"
+    },
+    "BluetoothLe": {
+      "displayStrings": {
+        "scanning": "Searching for nearby clocks…",
+        "cancel": "Cancel",
+        "availableDevices": "Nearby BLE devices",
+        "noDeviceFound": "No nearby device found"
+      }
+    }
+  },
+  "android": {
+    "backgroundColor": "#090b14"
+  }
+}

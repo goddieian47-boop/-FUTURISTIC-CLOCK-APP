@@ -1,0 +1,12 @@
+{
+  "name": "Orbit Clock",
+  "short_name": "Orbit",
+  "description": "A futuristic clock, alarms, reminders and games.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090b14",
+  "theme_color": "#090b14",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
